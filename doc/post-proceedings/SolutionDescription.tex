@@ -1,0 +1,128 @@
+%!TEX root = ttc15-train-benchmark-sigma.tex
+
+% \enlargethispage{20mm}
+
+\section{Solution Description}
+\label{sec:SolutionDescription}
+
+The solution for this transformation case study consist of a set of queries that check for violations of a number of constrains and repair transformations that fixes them.
+\SIGMA provides a dedicated model consistency checking DSL with the ability to provide quick fixes repairing invariant validations.
+However, given the benchmark framework used in the case study, we decided to provide a more dedicated support, a dedicated internal DSL, for the given query/repair tasks.
+The reason is that
+\begin{inparaenum}[(1)]
+  \item it allows for an easy comparison between the reference implementation in Java and EMF-IncQuery and
+  \item it shows the expressiveness of the language allowing one in few lines of code to bridge the gap between problem-level abstractions (query, repair transformation) and implementation-level concepts (\Eg, classes, higher-order functions).
+\end{inparaenum}
+
+The solution rely on the \SIGMA common infrastructure which provides a set of basic operations for model navigation (\Ie projecting information from models) and modification (\Ie changing model properties or elements).
+The description of the solution is split in two parts:
+\begin{inparaenum}[(1)]
+  \item the core part that describes the queries and repair transformations,
+  \item the integration part gives an overview how it has been integrated in the case study source code.
+\end{inparaenum}
+
+\subsection{Queries and Repair Transformations DSL}
+
+Essentially, we have created a small internal DSL that builds on \SIGMA and that allows us to solve the given benchmark cases in an expressive and compact way.
+Following the case study description, the top-level domain concept is a \emph{constraint}.
+A constraint is composed of a model \emph{query} that finds all model instances violating a certain model restriction and a \emph{repair} transformation correcting the failed instances.
+Concretely, a query is a function that given a model element---\Ie a context of the constraint in the classical model consistency checking---returns a set of \emph{matches}.
+A match can be either a singe instance or a tuple of instances of model elements that are related to the violations.
+
+\subsection{Constraint DSL}
+
+A typical way of creating an internal DSL in Scala is by designing a library that allows one to write fragments of code with domain-specific syntax.
+These fragments are woven within Scala own syntax so that it appears different.
+
+One way to represent the above concepts is using a Scala case class:
+%
+\begin{scalacode}
+case class Constraint[A <: EObject, B <: AnyRef](
+  query: (A) => Iterable[B],
+  repair: (B) => Unit
+)
+\end{scalacode}
+%
+This defines a case class with a field for both query and repair.
+A case class in Scala is like a regular class which some additional properties out which, in our case, the important one is that it can be instantiated without the \texttt{new} keyword and thus limiting the language noise.
+The two type parameters \texttt{A, B} specify the model context for the query and the types of matches the query produces.
+The input type is further constrained to be a subtype of an \texttt{EObject}.
+The query and repair are defined as functions \texttt{A} $\rightarrow$ \texttt{Iterable[B]} and \texttt{B} $\rightarrow$ \texttt{Unit} where \texttt{Unit} is like \texttt{void} in Java.
+
+In some cases the match returned by the query is of the same type as the query context.
+The query can be therefore simplified to a boolean expression selecting instances on which it evaluates to true.
+For these type of queries we provide a dedicated constructs called \texttt{BooleanConstraint}:
+%
+\begin{scalacode}
+case class BooleanConstraint[A <: EObject : ClassTag](
+  query: (A) => Boolean, 
+  repair: (A) => Unit
+)
+\end{scalacode}
+
+For example, the first query, \emph{PosLength}, which finds all the segments with negative length can be written as:
+%
+\begin{scalacode}
+BooleanConstraint[Segment](
+  query = segment => segment.length < 0,
+  repair = segment => segment.length += -segment.length + 1
+)
+\end{scalacode}
+%
+In Scala, \texttt{name => ...} is a function literal of one parameter function.
+We do not have to specify the types of the parameter nor the result as they will be inferred by the Scala compiler.
+% All the constraints are shown in the Appendix~\ref{sec:Constraints}.
+
+Another example using more complex expression is the \emph{SwitchSet} constraint:
+%
+\begin{scalacode}
+Constraint[SwitchPosition, (Semaphore, Route, SwitchPosition, Switch)](
+  query = swP => {
+    for {
+      semaphore <- Option(swP.route.entry) if semaphore.signal == Signal.GO
+      sw = swP.switch if sw.currentPosition != swP.position
+    } yield (semaphore, swP.route, swP, sw)
+  },
+
+  repair = {
+    case (_, _, swP, sw) => sw.currentPosition = swP.position
+  }
+)
+\end{scalacode}
+%
+This is a more complex constraint that matches a tuple of model elements.
+It is using a \emph{for comprehension}, a lightweight notation for expressing sequence comprehensions.
+From the Scala documentation\footnote{\url{http://docs.scala-lang.org/tutorials/tour/sequence-comprehensions.html}}:
+Comprehensions have the form \Scala{for (enumerators) yield e}, where enumerators refers to a semicolon- or new line-separated list of enumerators.
+An \emph{enumerator} is either a generator which introduces new variables, or it is a filter.
+A comprehension evaluates the body \emph{e} for each binding generated by the enumerators and returns a sequence of these values.
+
+In this concrete example, the generator is the optional value of the \texttt{Route.entry} reference.
+It either generates a single value in the case the actual instance contains one or it does not produce anything.
+Because, there is a mistake in the model (the \texttt{Route.entry} should have the cardinality set to \texttt{0..1} instead of \texttt{1}), we need to explicitly convert the reference to an \texttt{Option}.
+
+The repair function is defined using a pattern matching construct allowing us to concisely assign variables from the matching tuple.
+
+\subsection{Integration}
+
+The integration consists in making our solution work within the provided benchmark framework.
+First, next to constraint syntax, we also need to define its semantics.
+For that we define a validator which operationalizes the DSL executing the checks and consequent repairs of the incorrect model instances.
+It is defined as an abstract class with two methods that correspond to the two operations:
+%
+\begin{scalacode}
+abstract class Validator[A <: EObject, B <: AnyRef] {
+  def check(container: EObject): Iterator[B]
+  def repair(matches: Iterator[B]): Unit
+}
+\end{scalacode}
+%
+
+The implementation is straight forward.
+For all elements contained in a \texttt{container}, we first collect all instances of the required context type and then query them using the query function provided by the given constraint.
+The repair simply executes the constraint repair function on the matching element.
+
+Finally, we instantiate all the constraints, plugs them into the validator and connects the result to the provided framework.
+The integration schema is shown in Appendix~\ref{sec:SchemaIntegration}.
+We also create a \texttt{SigmaBenchmarkComparator} that is used to compare the matches as required by the case study.
+It is a general comparator that either compares single instances (results from boolean constraints violations) or tuples (regular constraints violations).
