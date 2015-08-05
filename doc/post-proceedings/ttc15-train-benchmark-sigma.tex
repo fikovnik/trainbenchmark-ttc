@@ -43,6 +43,8 @@
 \newcommand{\Etal}{\emph{et al.}\xspace}
 \newcommand{\Cf}{\emph{cf.}\xspace}
 
+\newcommand{\Paragraph}[1]{\vspace*{2mm} \noindent \textbf{#1.}}
+
 \newcommand{\Todo}[1]{\todo[inline]{#1}}
 \renewcommand{\Todo}[1]{}
 
@@ -55,9 +57,9 @@
 
 \author{
   Filip Křikava
-  \institute{University Lille 1 - LIFL, France}
-  \institute{INRIA Lille, Nord Europe}
-  \email{\href{mailto:filip.krikava@inria.fr}{filip.krikava@inria.fr}}
+  \institute{Faculty of Information Technologies}
+  \institute{Czech Technical University, Czech Republic}
+  \email{\href{mailto:filip.krikava@fit.cvut.cz}{filip.krikava@fit.cvut.cz}}
 % \and
 %   Philippe Collet
 %   \institute{Université Nice - Sophia Antipolis, France}
@@ -72,8 +74,8 @@
 \maketitle
 
 \begin{abstract}
-In this paper we describe a solution for the \emph{Transformation Tool Contest 2015} (\TTC) Train Benchmark case study using \SIGMA, a family of Scala internal \emph{Domain-Specific Languages} (DSLs) that provides an expressive and efficient API for model consistency checking and model transformations.
-The \SIGMA solution is the winner of \emph{the overall best solution} and \emph{the best performance solution}.
+This paper describes a solution for the \emph{Transformation Tool Contest 2015} (\TTC) Train Benchmark case study using \SIGMA, a family of Scala internal \emph{Domain-Specific Languages} (DSLs) that provides an expressive and efficient API for model consistency checking and model transformations.
+% The \SIGMA solution is the winner of \emph{the overall best solution} and \emph{the best performance solution}.
 \end{abstract}
 
 \input{Introduction.tex}
@@ -82,8 +84,8 @@ The \SIGMA solution is the winner of \emph{the overall best solution} and \emph{
 \input{Conclusion.tex}
 
 % \vspace*{-3mm}
-\paragraph{Acknowledgments}
-This work is partially supported by the Datalyse project\footnote{\url{www.datalyse.fr}}.
+\Paragraph{Acknowledgments}
+This work is partially supported by the Datalyse project\footnote{\url{http://www.datalyse.fr}}.
 % \vspace*{-3mm}
 
 \bibliographystyle{eptcs}
