@@ -9,17 +9,20 @@ The solution for this transformation case study consist of a set of queries that
 \SIGMA provides a dedicated model consistency checking DSL with the ability to provide quick fixes repairing invariant validations.
 However, given the benchmark framework used in the case study, we decided to provide a more dedicated support for the given query/repair tasks in a form of an internal DSL.
 The reason is that
+%
 \begin{inparaenum}[(1)]
   \item it allows for an easy comparison between the reference implementations in Java and EMF-IncQuery and
   \item it shows the expressiveness of the language allowing one in few lines of code to bridge the gap between the problem-level abstractions (query, repair transformation) and the implementation-level concepts (\Eg, classes, higher-order functions).
 \end{inparaenum}
+%
+We therefore only rely on the \SIGMA operations for model navigation (\Ie projecting information from models) and modification (\Ie changing model properties or elements).
+Essentially, these operations bridge the model classes (Ecore classes in this case) to be compatible with Scala allowing for example one to use the powerful Scala collection library.
 
-The solution rely on the \SIGMA common infrastructure which provides a set of basic operations for model navigation (\Ie projecting information from models) and modification (\Ie changing model properties or elements).
 On the top of \SIGMA, we have created a small internal DSL that allows us to solve the given benchmark cases in an expressive and compact way.
 Following the case study description, the top-level domain concept is a \emph{constraint}.
 A constraint is composed of a model \emph{query} that finds all model instances violating a certain model restriction and a \emph{repair} transformation correcting the failed instances.
 Concretely, a query is a function that given a model element---\Ie a context of the constraint in the classical model consistency checking---returns a set of \emph{matches}.
-A match can be either a singe instance or a tuple of instances of model elements that are related to the violations.
+A match can either be a single instance or a tuple of instances of model elements that are related to the violations.
 
 The following description of the solution is split in two parts:
 \begin{inparaenum}[(1)]
@@ -30,7 +33,7 @@ The following description of the solution is split in two parts:
 \subsection{Queries and Repair Transformations DSL}
 
 A typical way of creating an internal DSL in Scala is by designing a library that allows one to write fragments of code with domain-specific syntax.
-These fragments are woven within Scala own syntax so that it appears different.
+These fragments are woven within Scala's own syntax so that it appears different.
 
 One way to represent the above concepts is using a Scala case class:
 %
@@ -42,14 +45,14 @@ case class Constraint[A <: EObject, B <: AnyRef](
 \end{scalacode}
 %
 This defines a case class with a field for both query and repair.
-A case class in Scala is like a regular class which some additional properties out which, in our case, the important one is that it can be instantiated without the \texttt{new} keyword and thus limiting the language noise.
+A case class in Scala is like a regular class with some additional properties out which, in our case, the important one is that it can be instantiated without the \texttt{new} keyword and thus limiting the language noise.
 The two type parameters \texttt{A, B} specify the model context for the query and the types of matches the query produces.
 The input type is further constrained to be a subtype of an \texttt{EObject}.
 The query and repair are defined as functions \texttt{A} $\rightarrow$ \texttt{Iterable[B]} and \texttt{B} $\rightarrow$ \texttt{Unit} where \texttt{Unit} is like \texttt{void} in Java.
 
 In some cases the match returned by the query is of the same type as the query context.
 The query can be therefore simplified to a boolean expression selecting instances on which it evaluates to true.
-For these type of queries we provide a dedicated constructs called \texttt{BooleanConstraint}:
+For these types of queries we provide a dedicated construct called \texttt{BooleanConstraint}:
 %
 \begin{scalacode}
 case class BooleanConstraint[A <: EObject : ClassTag](
@@ -98,9 +101,9 @@ In this concrete example, the generator is the optional value of the \texttt{Rou
 It either generates a single value in the case the actual instance contains one or it does not produce anything.
 There is a small inconsistency in the model, the \texttt{Route.entry} should have the cardinality set to \texttt{0..1} instead of \texttt{1}, and that is why we need to explicitly convert the reference to an \texttt{Option}.
 
-finally, the repair function is defined using a pattern matching construct allowing us to concisely assign variables from the matching tuple.
+Finally, the repair function is defined using a pattern matching construct allowing us to concisely assign variables from the matching tuple.
 
-\subsection{Integration}
+\subsection{Operationalization and Integration}
 
 The integration consists in making our solution work within the provided benchmark framework.
 First, next to constraint syntax, we also need to define its semantics.
